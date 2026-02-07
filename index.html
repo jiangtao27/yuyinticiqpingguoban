@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>专业提词器</title>
+    <title>纯净提词器</title>
     <style>
         * {
             margin: 0;
@@ -18,7 +18,6 @@
         :root {
             --font-size: 36px;
             --line-height: 1.6;
-            --scroll-speed: 1.0;
         }
 
         html, body {
@@ -28,6 +27,7 @@
             color: #fff;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
             overflow: hidden;
+            position: fixed;
         }
 
         /* 启动页 */
@@ -39,6 +39,7 @@
             z-index: 1000;
             display: flex;
             flex-direction: column;
+            overflow-y: auto;
         }
 
         .start.hidden { display: none; }
@@ -48,6 +49,7 @@
             font-weight: 600;
             margin-bottom: 8px;
             color: #fff;
+            margin-top: env(safe-area-inset-top);
         }
 
         .sub {
@@ -81,22 +83,29 @@
             font-size: 17px;
             font-weight: 600;
             cursor: pointer;
+            margin-bottom: 10px;
         }
 
-        /* 提词器主体 - 全屏纯净 */
+        .btn.secondary {
+            background: #333;
+            color: #fff;
+        }
+
+        /* 提词器主体 - 全屏无抬头 */
         .prompter {
             display: none;
             position: fixed;
             inset: 0;
             background: #000;
             overflow: hidden;
+            touch-action: pan-y; /* 允许垂直滑动 */
         }
 
         .prompter.active {
             display: block;
         }
 
-        /* 滚动轨道 - 匀速滚动核心 */
+        /* 滚动轨道 */
         .track {
             position: absolute;
             width: 100%;
@@ -106,12 +115,13 @@
             will-change: transform;
         }
 
+        /* 字幕统一纯白，不变暗 */
         .line {
             width: 100%;
             text-align: center;
             font-size: var(--font-size);
             line-height: var(--line-height);
-            color: rgba(255, 255, 255, 0.4); /* 统一浅白色，不黑 */
+            color: #fff; /* 统一纯白 */
             padding: 0;
             margin: 0;
             font-weight: 400;
@@ -119,114 +129,40 @@
             align-items: center;
             justify-content: center;
             min-height: calc(var(--font-size) * var(--line-height));
-            transition: all 0.3s ease;
+            /* 无透明度变化，无颜色差异 */
         }
 
-        /* 只有当前行高亮 - 不改变其他行颜色 */
+        /* 当前行只加轻微缩放，颜色不变 */
         .line.active {
-            color: #fff;
+            transform: scale(1.05);
             font-weight: 600;
-            text-shadow: 0 0 20px rgba(255,255,255,0.2);
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+            color: #fff; /* 确保还是纯白 */
         }
 
-        /* 全屏时彻底隐藏的UI */
-        .ui-top {
+        /* 浮动设置按钮 - 极简 */
+        .fab {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 15px 20px;
-            padding-top: env(safe-area-inset-top);
-            display: flex;
-            justify-content: space-between;
-            z-index: 100;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .ui-top.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .pill {
-            background: rgba(50,50,50,0.8);
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
             backdrop-filter: blur(10px);
-            padding: 6px 12px;
-            border-radius: 16px;
-            font-size: 12px;
-            color: #999;
-        }
-
-        .pill.recording {
-            color: #30D158;
-        }
-
-        /* 设置按钮 - 角落最小化 */
-        .settings-trigger {
-            position: absolute;
-            top: env(safe-area-inset-top, 10px);
-            right: 10px;
-            width: 40px;
-            height: 40px;
-            background: transparent;
             border: none;
-            color: rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.5);
             font-size: 20px;
-            z-index: 200;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .settings-trigger.show {
-            opacity: 1;
-        }
-
-        /* 底部滑块 - 临时调出 */
-        .controls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px;
-            padding-bottom: env(safe-area-inset-bottom, 20px);
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
             z-index: 100;
             opacity: 0;
             transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .controls.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .speed-control {
             display: flex;
             align-items: center;
-            gap: 15px;
-            color: #666;
-            font-size: 13px;
+            justify-content: center;
         }
 
-        .slider {
-            flex: 1;
-            -webkit-appearance: none;
-            height: 4px;
-            border-radius: 2px;
-            background: rgba(255,255,255,0.2);
-            outline: none;
-        }
-
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #fff;
-            cursor: pointer;
+        .fab.show {
+            opacity: 1;
         }
 
         /* 设置面板 */
@@ -235,13 +171,13 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(20,20,20,0.98);
+            background: rgba(10,10,10,0.98);
             border-radius: 20px 20px 0 0;
-            padding: 25px;
-            padding-bottom: env(safe-area-inset-bottom, 25px);
+            padding: 30px;
+            padding-bottom: calc(30px + env(safe-area-inset-bottom));
             transform: translateY(100%);
             transition: transform 0.3s;
-            z-index: 300;
+            z-index: 200;
         }
 
         .settings.open {
@@ -264,9 +200,27 @@
             color: #fff;
         }
 
+        .slider {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.2);
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+        }
+
         .btn-close {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             background: #333;
             border: none;
             border-radius: 12px;
@@ -278,10 +232,10 @@
         .overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.7);
             opacity: 0;
             pointer-events: none;
-            z-index: 250;
+            z-index: 150;
         }
 
         .overlay.show {
@@ -289,10 +243,37 @@
             pointer-events: auto;
         }
 
-        /* 全屏时强制隐藏所有系统UI */
-        :fullscreen .ui-top,
-        :webkit-full-screen .ui-top {
-            display: none !important;
+        /* 速度提示 */
+        .hint {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.3);
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .hint.show {
+            opacity: 1;
+        }
+
+        /* 全屏强制隐藏浏览器UI */
+        :fullscreen {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        :fullscreen .prompter {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar {
+            display: none;
         }
     </style>
 </head>
@@ -300,44 +281,28 @@
 
     <!-- 启动页 -->
     <div class="start" id="start">
-        <h1>专业提词器</h1>
-        <div class="sub">匀速滚动 · 预判翻页 · 纯净全屏</div>
-        <textarea id="input" placeholder="粘贴台词，每行一句...">欢迎使用专业提词器
-文字会匀速向上滚动
-只有当前行是高亮白色
-其他行是浅灰色不会变黑
-滚动速度恒定可调
-不会因为语速忽快忽慢
-全屏时没有任何色块遮挡
-点击屏幕显示设置
+        <h1>纯净提词器</h1>
+        <div class="sub">全屏无抬头 · 纯白字幕 · 手势滑动</div>
+        <textarea id="input" placeholder="粘贴台词，每行一句...">欢迎使用纯净提词器
+上下滑动屏幕翻页
+不用点击任何地方
+当前句子在屏幕中央偏上
+所有文字都是纯白色
+横屏时请旋转手机后点击全屏
+确保没有任何抬头遮挡
 祝你演讲成功</textarea>
         <button class="btn" onclick="start()">开始演讲</button>
+        <button class="btn secondary" onclick="startFullscreen()">全屏模式</button>
     </div>
 
     <!-- 提词器 -->
     <div class="prompter" id="prompter">
-        <!-- 极简状态栏 - 默认隐藏 -->
-        <div class="ui-top" id="uiTop">
-            <div class="pill" id="statusPill">就绪</div>
-            <div class="pill" id="progressPill">1/10</div>
-        </div>
-
-        <!-- 设置触发区 -->
-        <button class="settings-trigger" id="trigger" onclick="toggleUI()">⚙️</button>
-
-        <!-- 滚动轨道 -->
         <div class="track" id="track"></div>
-
-        <!-- 底部控制 -->
-        <div class="controls" id="controls">
-            <div class="speed-control">
-                <span>慢</span>
-                <input type="range" class="slider" min="0.5" max="2.0" step="0.1" value="1.0" id="speedSlider" oninput="setSpeed(this.value)">
-                <span>快</span>
-            </div>
-        </div>
-
-        <!-- 设置面板 -->
+        
+        <div class="hint" id="hint">上滑下一句 · 下滑上一句</div>
+        
+        <button class="fab" id="fab" onclick="openSettings()">⚙️</button>
+        
         <div class="overlay" id="overlay" onclick="closeSettings()"></div>
         <div class="settings" id="settings">
             <div class="setting-row">
@@ -345,7 +310,7 @@
                     <span>字体大小</span>
                     <span class="value" id="fontVal">36px</span>
                 </div>
-                <input type="range" class="slider" min="24" max="60" value="36" oninput="setFont(this.value)">
+                <input type="range" class="slider" min="24" max="56" value="36" oninput="setFont(this.value)">
             </div>
             <div class="setting-row">
                 <div class="label">
@@ -353,6 +318,13 @@
                     <span class="value" id="lineVal">1.6</span>
                 </div>
                 <input type="range" class="slider" min="12" max="24" value="16" oninput="setLine(this.value)">
+            </div>
+            <div class="setting-row">
+                <div class="label">
+                    <span>滚动速度</span>
+                    <span class="value" id="speedVal">1.0x</span>
+                </div>
+                <input type="range" class="slider" min="5" max="25" value="10" oninput="setSpeed(this.value)">
             </div>
             <button class="btn-close" onclick="exit()">退出演讲</button>
         </div>
@@ -364,13 +336,16 @@
         let current = 0;
         let offset = 0;
         let target = 0;
-        let speed = 1.0;
+        let scrollSpeed = 1.0;
         let autoScroll = null;
-        let recognition = null;
-        let isRecording = false;
         let heights = [];
         let cumulative = [];
-        let uiVisible = false;
+        let recognition = null;
+
+        // 手势变量
+        let touchStartY = 0;
+        let touchStartTime = 0;
+        let isTouching = false;
 
         function start() {
             const text = document.getElementById('input').value.trim();
@@ -381,13 +356,25 @@
             document.getElementById('prompter').classList.add('active');
             
             init();
-            requestFullscreen();
+            setupGestures();
             
-            // 延迟启动，等全屏完成
             setTimeout(() => {
+                document.getElementById('fab').classList.add('show');
+                document.getElementById('hint').classList.add('show');
+                setTimeout(() => document.getElementById('hint').classList.remove('show'), 3000);
                 startScroll();
                 initVoice();
-            }, 300);
+            }, 100);
+        }
+
+        function startFullscreen() {
+            start();
+            setTimeout(() => {
+                const el = document.documentElement;
+                if (el.requestFullscreen) el.requestFullscreen();
+                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                else if (el.msRequestFullscreen) el.msRequestFullscreen();
+            }, 100);
         }
 
         function init() {
@@ -395,7 +382,7 @@
             track.innerHTML = '';
             lineEls = [];
             
-            lines.forEach((line, i) => {
+            lines.forEach((line) => {
                 const div = document.createElement('div');
                 div.className = 'line';
                 div.textContent = line;
@@ -403,7 +390,7 @@
                 lineEls.push(div);
             });
 
-            // 计算高度
+            // 计算布局
             setTimeout(() => {
                 let sum = 0;
                 heights = [];
@@ -415,74 +402,100 @@
                     sum += h;
                 });
                 
-                // 初始位置：第一行在视线位置（屏幕下方1/3处）
-                const viewport = window.innerHeight;
-                const focus = viewport * 0.6;
-                offset = focus - heights[0]/2;
-                target = offset;
-                track.style.transform = `translateY(${offset}px)`;
-                updateActive(0);
+                // 初始位置：第一行在中央偏上（40%位置）
+                goTo(0, false);
             }, 50);
         }
 
-        // 匀速滚动核心
-        function startScroll() {
-            if (autoScroll) cancelAnimationFrame(autoScroll);
+        // 核心：滚动到指定行，视线在中央偏上（40%）
+        function goTo(index, smooth = true) {
+            if (index < 0 || index >= lines.length) return;
             
+            const viewport = window.innerHeight;
+            const focus = viewport * 0.4; // 中央偏上（40%位置）
+            
+            target = focus - (cumulative[index] + heights[index]/2);
+            
+            if (!smooth) {
+                offset = target;
+                updateTrack();
+            }
+            
+            // 更新当前行状态（仅缩放，颜色不变）
+            lineEls.forEach((el, i) => {
+                el.classList.toggle('active', i === index);
+            });
+            
+            current = index;
+        }
+
+        function updateTrack() {
+            document.getElementById('track').style.transform = `translateY(${offset}px)`;
+        }
+
+        // 匀速滚动动画
+        function startScroll() {
             function animate() {
-                // 匀速接近目标
                 const diff = target - offset;
                 if (Math.abs(diff) > 0.5) {
-                    // 恒定速度，不根据语速变化
-                    const step = Math.min(Math.abs(diff) * 0.05 * speed, 3 * speed);
+                    // 恒定速度，匀速接近
+                    const step = Math.min(Math.abs(diff) * 0.08 * scrollSpeed, 5 * scrollSpeed);
                     offset += diff > 0 ? step : -step;
-                    document.getElementById('track').style.transform = `translateY(${offset}px)`;
+                    updateTrack();
                 }
                 autoScroll = requestAnimationFrame(animate);
             }
             animate();
         }
 
-        function goTo(index) {
-            if (index < 0 || index >= lines.length) return;
-            const viewport = window.innerHeight;
-            const focus = viewport * 0.6;
-            target = focus - (cumulative[index] + heights[index]/2);
-            updateActive(index);
-            updateProgress(index);
-            current = index;
-        }
-
-        function updateActive(index) {
-            lineEls.forEach((el, i) => {
-                el.classList.toggle('active', i === index);
-            });
-        }
-
-        function updateProgress(index) {
-            document.getElementById('progressPill').textContent = `${index + 1}/${lines.length}`;
-        }
-
-        // 预判翻页 - 检测读完前几个字就开始滚动
-        function checkSpeech(text) {
-            text = text.toLowerCase().replace(/\s/g, '');
-            const currentText = lines[current].toLowerCase().replace(/\s/g, '');
+        // 手势控制核心 - 上下滑动翻页
+        function setupGestures() {
+            const stage = document.getElementById('prompter');
             
-            // 预判：匹配到当前行后4个字，说明快读完了
-            if (currentText.length > 4 && text.includes(currentText.slice(-4))) {
-                if (current < lines.length - 1) {
-                    // 提前滚动，给用户看下一行的时间
-                    setTimeout(() => next(), 200);
+            stage.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+                touchStartTime = Date.now();
+                isTouching = true;
+            }, { passive: true });
+
+            stage.addEventListener('touchmove', (e) => {
+                if (!isTouching) return;
+                e.preventDefault(); // 防止页面滚动
+                
+                const currentY = e.touches[0].clientY;
+                const diff = touchStartY - currentY;
+                
+                // 跟随手指移动（预览效果）
+                const viewport = window.innerHeight;
+                const focus = viewport * 0.4;
+                const tempTarget = focus - (cumulative[current] + heights[current]/2) - diff;
+                offset = tempTarget;
+                updateTrack();
+            }, { passive: false });
+
+            stage.addEventListener('touchend', (e) => {
+                if (!isTouching) return;
+                isTouching = false;
+                
+                const endY = e.changedTouches[0].clientY;
+                const diff = touchStartY - endY;
+                const duration = Date.now() - touchStartTime;
+                const velocity = Math.abs(diff) / duration;
+                
+                // 判断滑动距离或速度
+                if (Math.abs(diff) > 50 || velocity > 0.5) {
+                    if (diff > 0) {
+                        // 向上滑 -> 下一句
+                        next();
+                    } else {
+                        // 向下滑 -> 上一句
+                        prev();
+                    }
+                } else {
+                    // 滑动不够，回弹到当前句
+                    goTo(current);
                 }
-            }
-            
-            // 如果直接跳到下一行开头，立即跟上
-            if (current < lines.length - 1) {
-                const nextText = lines[current + 1].toLowerCase().replace(/\s/g, '');
-                if (nextText.length > 3 && text.includes(nextText.slice(0, 3))) {
-                    next();
-                }
-            }
+            }, { passive: true });
         }
 
         function next() {
@@ -493,25 +506,69 @@
             if (current > 0) goTo(current - 1);
         }
 
-        // 速度设置 - 恒定不变，不自动调节
-        function setSpeed(val) {
-            speed = parseFloat(val);
+        // 语音识别 - 预判翻页
+        function initVoice() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'zh-CN';
+
+            recognition.onstart = () => {
+                // 录音开始，不显示UI变化，保持纯净
+            };
+
+            recognition.onresult = (e) => {
+                let text = '';
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                    text += e.results[i][0].transcript;
+                }
+                checkSpeech(text);
+            };
+
+            recognition.onend = () => {
+                if (recognition) setTimeout(() => recognition.start(), 50);
+            };
+
+            recognition.start();
         }
 
+        function checkSpeech(text) {
+            text = text.toLowerCase().replace(/\s/g, '');
+            const currentText = lines[current].toLowerCase().replace(/\s/g, '');
+            
+            // 预判：读到当前行后3个字，准备翻页
+            if (currentText.length > 3 && text.includes(currentText.slice(-3))) {
+                if (current < lines.length - 1) {
+                    setTimeout(() => next(), 150);
+                }
+            }
+            
+            // 如果已经读到下一句开头，立即跟上
+            if (current < lines.length - 1) {
+                const nextText = lines[current + 1].toLowerCase().replace(/\s/g, '');
+                if (nextText.length > 2 && text.includes(nextText.slice(0, 2))) {
+                    next();
+                }
+            }
+        }
+
+        // 设置调节
         function setFont(val) {
             document.documentElement.style.setProperty('--font-size', val + 'px');
             document.getElementById('fontVal').textContent = val + 'px';
-            // 重新计算
             setTimeout(() => {
                 let sum = 0;
                 cumulative = [];
-                lineEls.forEach(el => {
+                lineEls.forEach((el, i) => {
                     const h = el.offsetHeight;
-                    heights.push(h);
+                    heights[i] = h;
                     cumulative.push(sum);
                     sum += h;
                 });
-                goTo(current);
+                goTo(current, false);
             }, 100);
         }
 
@@ -528,99 +585,41 @@
                     cumulative.push(sum);
                     sum += h;
                 });
-                goTo(current);
+                goTo(current, false);
             }, 100);
         }
 
-        // UI控制
-        function toggleUI() {
-            uiVisible = !uiVisible;
-            document.getElementById('uiTop').classList.toggle('show', uiVisible);
-            document.getElementById('controls').classList.toggle('show', uiVisible);
-            document.getElementById('trigger').classList.toggle('show', !uiVisible);
+        function setSpeed(val) {
+            scrollSpeed = val / 10;
+            document.getElementById('speedVal').textContent = scrollSpeed.toFixed(1) + 'x';
         }
-
-        // 点击屏幕控制
-        let lastTap = 0;
-        document.getElementById('prompter').addEventListener('click', (e) => {
-            const now = Date.now();
-            const x = e.clientX;
-            const w = window.innerWidth;
-            
-            if (now - lastTap < 300) {
-                // 双击打开设置
-                openSettings();
-            } else if (x < w * 0.25) {
-                prev();
-            } else if (x > w * 0.75) {
-                next();
-            } else if (!uiVisible) {
-                toggleUI();
-            }
-            
-            lastTap = now;
-        });
 
         function openSettings() {
             document.getElementById('overlay').classList.add('show');
             document.getElementById('settings').classList.add('open');
+            document.getElementById('fab').classList.remove('show');
         }
 
         function closeSettings() {
             document.getElementById('overlay').classList.remove('show');
             document.getElementById('settings').classList.remove('open');
+            document.getElementById('fab').classList.add('show');
         }
 
         function exit() {
-            if (confirm('退出？')) {
+            if (confirm('退出演讲？')) {
                 if (document.exitFullscreen) document.exitFullscreen();
                 location.reload();
             }
         }
 
-        // 语音识别
-        function initVoice() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) return;
-
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = true;
-            recognition.lang = 'zh-CN';
-
-            recognition.onstart = () => {
-                isRecording = true;
-                document.getElementById('statusPill').textContent = '● 录音';
-                document.getElementById('statusPill').classList.add('recording');
-            };
-
-            recognition.onresult = (e) => {
-                let transcript = '';
-                for (let i = e.resultIndex; i < e.results.length; i++) {
-                    transcript += e.results[i][0].transcript;
-                }
-                checkSpeech(transcript);
-            };
-
-            recognition.onend = () => {
-                if (isRecording) setTimeout(() => recognition.start(), 100);
-            };
-
-            recognition.start();
-        }
-
-        function requestFullscreen() {
-            const el = document.documentElement;
-            if (el.requestFullscreen) el.requestFullscreen();
-            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-        }
-
-        // 键盘控制
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowDown' || e.key === ' ') next();
-            if (e.key === 'ArrowUp') prev();
-            if (e.key === 'f') requestFullscreen();
-        });
+        // 防止休眠
+        setInterval(() => {
+            if (document.getElementById('prompter').classList.contains('active')) {
+                window.location.href = window.location.href + '#';
+                history.back();
+            }
+        }, 30000);
     </script>
 </body>
 </html>
