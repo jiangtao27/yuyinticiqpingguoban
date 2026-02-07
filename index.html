@@ -5,69 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>演播室提词器</title>
+    <title>专业提词器</title>
     <style>
-        :root {
-            --font-size: 36px;
-            --line-height: 1.8;
-            --font-weight: 500;
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
             user-select: none;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+        :root {
+            --font-size: 36px;
+            --line-height: 1.6;
+            --scroll-speed: 1.0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
             background: #000;
             color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
             overflow: hidden;
-            touch-action: manipulation;
         }
 
         /* 启动页 */
-        .start-screen {
+        .start {
             position: fixed;
             inset: 0;
             background: #000;
-            display: flex;
-            flex-direction: column;
             padding: 40px 30px;
             z-index: 1000;
-            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
-        .start-screen.hidden { display: none; }
+        .start.hidden { display: none; }
 
-        .title {
-            font-size: 32px;
-            font-weight: 700;
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
             margin-bottom: 8px;
-            background: linear-gradient(135deg, #30D158 0%, #0A84FF 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #fff;
         }
 
-        .subtitle {
-            color: #8E8E93;
-            font-size: 16px;
+        .sub {
+            color: #666;
+            font-size: 15px;
             margin-bottom: 30px;
         }
 
         textarea {
             width: 100%;
             flex: 1;
-            background: #1C1C1E;
-            border: 1px solid #2C2C2E;
-            border-radius: 16px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 12px;
             padding: 20px;
             color: #fff;
-            font-size: 17px;
+            font-size: 16px;
             line-height: 1.5;
             resize: none;
             margin-bottom: 15px;
@@ -75,23 +72,18 @@
         }
 
         .btn {
-            background: #30D158;
+            width: 100%;
+            padding: 16px;
+            background: #fff;
             color: #000;
             border: none;
-            padding: 18px;
-            border-radius: 14px;
+            border-radius: 12px;
             font-size: 17px;
             font-weight: 600;
             cursor: pointer;
-            margin-bottom: 10px;
         }
 
-        .btn.secondary {
-            background: #2C2C2E;
-            color: #0A84FF;
-        }
-
-        /* 提词器主界面 */
+        /* 提词器主体 - 全屏纯净 */
         .prompter {
             display: none;
             position: fixed;
@@ -104,289 +96,192 @@
             display: block;
         }
 
-        /* 顶部状态栏 - 全屏时隐藏 */
-        .top-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 10px 20px;
-            padding-top: max(10px, env(safe-area-inset-top));
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
-            transition: opacity 0.3s, transform 0.3s;
-        }
-
-        .top-bar.hidden {
-            opacity: 0;
-            transform: translateY(-100%);
-            pointer-events: none;
-        }
-
-        .status-chip {
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(10px);
-            padding: 6px 12px;
-            border-radius: 16px;
-            font-size: 12px;
-            color: #fff;
-        }
-
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #8E8E93;
-            display: inline-block;
-            margin-right: 6px;
-        }
-
-        .status-dot.active {
-            background: #30D158;
-            box-shadow: 0 0 0 2px rgba(48,209,88,0.3);
-        }
-
-        /* 设置按钮 - 右上角固定 */
-        .settings-btn {
-            position: absolute;
-            top: max(10px, env(safe-area-inset-top));
-            right: 20px;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(10px);
-            border: none;
-            color: #fff;
-            font-size: 18px;
-            z-index: 101;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* 连续滚动舞台 */
-        .stage {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            perspective: 1000px;
-        }
-
-        .scroll-track {
+        /* 滚动轨道 - 匀速滚动核心 */
+        .track {
             position: absolute;
             width: 100%;
             padding: 0 40px;
-            transition: transform 0.1s linear;
+            top: 0;
+            left: 0;
             will-change: transform;
         }
 
         .line {
+            width: 100%;
             text-align: center;
             font-size: var(--font-size);
             line-height: var(--line-height);
+            color: rgba(255, 255, 255, 0.4); /* 统一浅白色，不黑 */
             padding: 0;
-            color: rgba(255,255,255,0.2);
-            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            font-weight: var(--font-weight);
-            min-height: calc(var(--font-size) * var(--line-height));
+            margin: 0;
+            font-weight: 400;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0;
+            min-height: calc(var(--font-size) * var(--line-height));
+            transition: all 0.3s ease;
         }
 
-        /* 当前行高亮 */
+        /* 只有当前行高亮 - 不改变其他行颜色 */
         .line.active {
             color: #fff;
             font-weight: 600;
-            text-shadow: 0 0 20px rgba(255,255,255,0.15);
-            transform: scale(1.02);
+            text-shadow: 0 0 20px rgba(255,255,255,0.2);
         }
 
-        .line.prev {
-            color: rgba(255,255,255,0.08);
-        }
-
-        /* 控制栏 - 横屏自动隐藏 */
-        .controls {
+        /* 全屏时彻底隐藏的UI */
+        .ui-top {
             position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(30,30,30,0.85);
-            backdrop-filter: blur(20px);
-            padding: 8px;
-            border-radius: 30px;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 20px;
+            padding-top: env(safe-area-inset-top);
             display: flex;
-            gap: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
+            justify-content: space-between;
             z-index: 100;
-            transition: opacity 0.3s, transform 0.3s;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
         }
 
-        /* 横屏时隐藏控制板 */
-        @media (orientation: landscape) {
-            .controls {
-                opacity: 0;
-                pointer-events: none;
-                transform: translateX(-50%) translateY(20px);
-            }
-            
-            /* 横屏时显示提示 */
-            .controls-hint {
-                display: block;
-            }
+        .ui-top.show {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        .ctrl-btn {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: none;
-            background: transparent;
-            color: #fff;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
+        .pill {
+            background: rgba(50,50,50,0.8);
+            backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            color: #999;
         }
 
-        .ctrl-btn:active {
-            transform: scale(0.9);
-            background: rgba(255,255,255,0.1);
+        .pill.recording {
+            color: #30D158;
         }
 
-        .ctrl-btn.main {
-            background: #30D158;
-            color: #000;
-            width: 60px;
-            height: 60px;
-            font-size: 24px;
-        }
-
-        .ctrl-btn.main.recording {
-            background: #FF3B30;
-        }
-
-        .ctrl-btn.small {
+        /* 设置按钮 - 角落最小化 */
+        .settings-trigger {
+            position: absolute;
+            top: env(safe-area-inset-top, 10px);
+            right: 10px;
             width: 40px;
             height: 40px;
-            font-size: 16px;
-            color: #8E8E93;
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.3);
+            font-size: 20px;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
-        /* 设置面板 */
-        .settings-sheet {
-            position: fixed;
+        .settings-trigger.show {
+            opacity: 1;
+        }
+
+        /* 底部滑块 - 临时调出 */
+        .controls {
+            position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(28,28,30,0.98);
-            backdrop-filter: blur(20px);
-            border-radius: 24px 24px 0 0;
-            padding: 25px;
-            padding-bottom: max(25px, env(safe-area-inset-bottom));
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            z-index: 200;
-            max-height: 80vh;
-            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
         }
 
-        .settings-sheet.open {
-            transform: translateY(0);
+        .controls.show {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        .sheet-header {
+        .speed-control {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
+            gap: 15px;
+            color: #666;
+            font-size: 13px;
         }
 
-        .sheet-title { 
-            font-size: 20px; 
-            font-weight: 600; 
-        }
-
-        .close-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: #fff;
-            font-size: 18px;
-        }
-
-        .setting-row {
-            margin-bottom: 30px;
-        }
-
-        .setting-label {
-            font-size: 15px;
-            color: #8E8E93;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .setting-value {
-            color: #30D158;
-            font-weight: 600;
-        }
-
-        .slider-container {
-            position: relative;
-            margin: 10px 0;
-        }
-
-        .ios-slider {
-            width: 100%;
+        .slider {
+            flex: 1;
             -webkit-appearance: none;
-            height: 6px;
-            border-radius: 3px;
+            height: 4px;
+            border-radius: 2px;
             background: rgba(255,255,255,0.2);
             outline: none;
         }
 
-        .ios-slider::-webkit-slider-thumb {
+        .slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 28px;
-            height: 28px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             background: #fff;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             cursor: pointer;
         }
 
-        .range-labels {
+        /* 设置面板 */
+        .settings {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(20,20,20,0.98);
+            border-radius: 20px 20px 0 0;
+            padding: 25px;
+            padding-bottom: env(safe-area-inset-bottom, 25px);
+            transform: translateY(100%);
+            transition: transform 0.3s;
+            z-index: 300;
+        }
+
+        .settings.open {
+            transform: translateY(0);
+        }
+
+        .setting-row {
+            margin-bottom: 25px;
+        }
+
+        .label {
             display: flex;
             justify-content: space-between;
-            font-size: 12px;
+            font-size: 14px;
             color: #666;
-            margin-top: 8px;
+            margin-bottom: 10px;
+        }
+
+        .value {
+            color: #fff;
+        }
+
+        .btn-close {
+            width: 100%;
+            padding: 15px;
+            background: #333;
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            margin-top: 10px;
         }
 
         .overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.5);
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s;
-            z-index: 150;
+            z-index: 250;
         }
 
         .overlay.show {
@@ -394,347 +289,293 @@
             pointer-events: auto;
         }
 
-        /* 横屏提示 */
-        .landscape-hint {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(48,209,88,0.2);
-            color: #30D158;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            z-index: 99;
-        }
-
-        .landscape-hint.show {
-            opacity: 1;
-        }
-
-        .toast {
-            position: fixed;
-            top: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(60,60,67,0.95);
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-size: 15px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 1000;
-            pointer-events: none;
-        }
-
-        .toast.show { opacity: 1; }
-
-        /* 全屏按钮 */
-        .fullscreen-btn {
-            position: absolute;
-            bottom: max(20px, env(safe-area-inset-bottom));
-            right: 20px;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: rgba(60,60,67,0.6);
-            backdrop-filter: blur(10px);
-            border: none;
-            color: #fff;
-            font-size: 20px;
-            z-index: 101;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* 全屏时强制隐藏所有系统UI */
+        :fullscreen .ui-top,
+        :webkit-full-screen .ui-top {
+            display: none !important;
         }
     </style>
 </head>
 <body>
 
     <!-- 启动页 -->
-    <div class="start-screen" id="startScreen">
-        <div class="title">🎬 演播室提词器</div>
-        <div class="subtitle">横屏沉浸 · 字体可调 · 丝滑滚动</div>
-        
-        <textarea id="scriptInput" placeholder="粘贴台词，每行一句...">欢迎使用演播室级提词器
-这是第一句台词
-横屏时会自动隐藏控制板
-给你最大的字幕空间
-字体大小可以调节
-行间距也可以调节
-全屏时顶部状态栏会自动隐藏
-点击屏幕中央打开设置
+    <div class="start" id="start">
+        <h1>专业提词器</h1>
+        <div class="sub">匀速滚动 · 预判翻页 · 纯净全屏</div>
+        <textarea id="input" placeholder="粘贴台词，每行一句...">欢迎使用专业提词器
+文字会匀速向上滚动
+只有当前行是高亮白色
+其他行是浅灰色不会变黑
+滚动速度恒定可调
+不会因为语速忽快忽慢
+全屏时没有任何色块遮挡
+点击屏幕显示设置
 祝你演讲成功</textarea>
-        
         <button class="btn" onclick="start()">开始演讲</button>
-        <button class="btn secondary" onclick="enterFullscreen()">进入全屏</button>
     </div>
 
-    <!-- 提词器主界面 -->
+    <!-- 提词器 -->
     <div class="prompter" id="prompter">
-        <!-- 设置按钮 -->
-        <button class="settings-btn" onclick="openSettings()">⚙️</button>
-        
-        <!-- 全屏按钮 -->
-        <button class="fullscreen-btn" onclick="toggleFullscreen()" id="fullscreenBtn">⛶</button>
-
-        <!-- 顶部状态栏（全屏时自动隐藏） -->
-        <div class="top-bar" id="topBar">
-            <div class="status-chip">
-                <span class="status-dot" id="statusDot"></span>
-                <span id="statusText">就绪</span>
-            </div>
-            <div class="status-chip" id="progressChip">1/10</div>
+        <!-- 极简状态栏 - 默认隐藏 -->
+        <div class="ui-top" id="uiTop">
+            <div class="pill" id="statusPill">就绪</div>
+            <div class="pill" id="progressPill">1/10</div>
         </div>
 
-        <!-- 横屏提示 -->
-        <div class="landscape-hint" id="landscapeHint">
-            横屏模式：点击屏幕打开设置
-        </div>
+        <!-- 设置触发区 -->
+        <button class="settings-trigger" id="trigger" onclick="toggleUI()">⚙️</button>
 
-        <!-- 滚动舞台 -->
-        <div class="stage" id="stage">
-            <div class="scroll-track" id="track"></div>
-        </div>
+        <!-- 滚动轨道 -->
+        <div class="track" id="track"></div>
 
-        <!-- 控制栏（横屏自动隐藏） -->
+        <!-- 底部控制 -->
         <div class="controls" id="controls">
-            <button class="ctrl-btn small" onclick="adjustSpeed(-0.2)">🐢</button>
-            <button class="ctrl-btn main" id="micBtn" onclick="toggleVoice()">🎤</button>
-            <button class="ctrl-btn small" onclick="adjustSpeed(0.2)">🐇</button>
-            <button class="ctrl-btn small" onclick="manualPrev()">⬆️</button>
-            <button class="ctrl-btn small" onclick="manualNext()">⬇️</button>
+            <div class="speed-control">
+                <span>慢</span>
+                <input type="range" class="slider" min="0.5" max="2.0" step="0.1" value="1.0" id="speedSlider" oninput="setSpeed(this.value)">
+                <span>快</span>
+            </div>
+        </div>
+
+        <!-- 设置面板 -->
+        <div class="overlay" id="overlay" onclick="closeSettings()"></div>
+        <div class="settings" id="settings">
+            <div class="setting-row">
+                <div class="label">
+                    <span>字体大小</span>
+                    <span class="value" id="fontVal">36px</span>
+                </div>
+                <input type="range" class="slider" min="24" max="60" value="36" oninput="setFont(this.value)">
+            </div>
+            <div class="setting-row">
+                <div class="label">
+                    <span>行间距</span>
+                    <span class="value" id="lineVal">1.6</span>
+                </div>
+                <input type="range" class="slider" min="12" max="24" value="16" oninput="setLine(this.value)">
+            </div>
+            <button class="btn-close" onclick="exit()">退出演讲</button>
         </div>
     </div>
-
-    <!-- 设置面板 -->
-    <div class="overlay" id="overlay" onclick="closeSettings()"></div>
-    <div class="settings-sheet" id="settingsSheet">
-        <div class="sheet-header">
-            <div class="sheet-title">显示设置</div>
-            <button class="close-btn" onclick="closeSettings()">✕</button>
-        </div>
-
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>字体大小</span>
-                <span class="setting-value" id="fontSizeValue">36px</span>
-            </div>
-            <div class="slider-container">
-                <input type="range" class="ios-slider" min="20" max="72" value="36" id="fontSizeSlider" oninput="updateFontSize(this.value)">
-                <div class="range-labels">
-                    <span>小</span>
-                    <span>大</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>行间距</span>
-                <span class="setting-value" id="lineHeightValue">1.8</span>
-            </div>
-            <div class="slider-container">
-                <input type="range" class="ios-slider" min="10" max="30" value="18" id="lineHeightSlider" oninput="updateLineHeight(this.value)">
-                <div class="range-labels">
-                    <span>紧凑</span>
-                    <span>宽松</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>字重</span>
-                <span class="setting-value" id="fontWeightValue">中等</span>
-            </div>
-            <div class="slider-container">
-                <input type="range" class="ios-slider" min="3" max="7" value="5" id="fontWeightSlider" oninput="updateFontWeight(this.value)">
-                <div class="range-labels">
-                    <span>细</span>
-                    <span>粗</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="setting-row">
-            <button class="btn secondary" onclick="exit()" style="width: 100%;">退出演讲</button>
-        </div>
-    </div>
-
-    <div class="toast" id="toast"></div>
 
     <script>
-        let scriptLines = [];
-        let lineElements = [];
-        let currentIndex = 0;
-        let trackOffset = 0;
-        let targetOffset = 0;
-        let scrollSpeed = 1.0;
+        let lines = [];
+        let lineEls = [];
+        let current = 0;
+        let offset = 0;
+        let target = 0;
+        let speed = 1.0;
+        let autoScroll = null;
         let recognition = null;
         let isRecording = false;
-        let isFullscreen = false;
-        
-        // 高度缓存
-        let lineHeights = [];
-        let cumulativeHeights = [];
+        let heights = [];
+        let cumulative = [];
+        let uiVisible = false;
 
         function start() {
-            const text = document.getElementById('scriptInput').value.trim();
-            if (!text) return showToast('请输入台词');
-
-            scriptLines = text.split('\n').filter(l => l.trim());
-            if (scriptLines.length < 2) return showToast('至少需要2行');
-
-            document.getElementById('startScreen').classList.add('hidden');
-            document.getElementById('prompter').classList.add('active');
-
-            initStage();
-            initVoice();
-            checkOrientation();
+            const text = document.getElementById('input').value.trim();
+            if (!text) return alert('请输入台词');
             
+            lines = text.split('\n').filter(l => l.trim());
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('prompter').classList.add('active');
+            
+            init();
+            requestFullscreen();
+            
+            // 延迟启动，等全屏完成
             setTimeout(() => {
-                toggleVoice();
-                startAutoScroll();
-            }, 500);
+                startScroll();
+                initVoice();
+            }, 300);
         }
 
-        function initStage() {
+        function init() {
             const track = document.getElementById('track');
             track.innerHTML = '';
-            lineElements = [];
-            lineHeights = [];
-            cumulativeHeights = [];
-
-            scriptLines.forEach((line, index) => {
+            lineEls = [];
+            
+            lines.forEach((line, i) => {
                 const div = document.createElement('div');
                 div.className = 'line';
                 div.textContent = line;
                 track.appendChild(div);
-                lineElements.push(div);
+                lineEls.push(div);
             });
 
-            // 计算布局
+            // 计算高度
             setTimeout(() => {
-                calculateHeights();
-                scrollToLine(0, false);
-            }, 100);
+                let sum = 0;
+                heights = [];
+                cumulative = [];
+                lineEls.forEach(el => {
+                    const h = el.offsetHeight;
+                    heights.push(h);
+                    cumulative.push(sum);
+                    sum += h;
+                });
+                
+                // 初始位置：第一行在视线位置（屏幕下方1/3处）
+                const viewport = window.innerHeight;
+                const focus = viewport * 0.6;
+                offset = focus - heights[0]/2;
+                target = offset;
+                track.style.transform = `translateY(${offset}px)`;
+                updateActive(0);
+            }, 50);
         }
 
-        function calculateHeights() {
-            let cumulative = 0;
-            lineElements.forEach((el, i) => {
-                const height = el.offsetHeight;
-                lineHeights.push(height);
-                cumulativeHeights.push(cumulative);
-                cumulative += height;
-            });
-        }
-
-        // 平滑滚动核心
-        function scrollToLine(index, smooth = true) {
-            if (index < 0 || index >= scriptLines.length) return;
+        // 匀速滚动核心
+        function startScroll() {
+            if (autoScroll) cancelAnimationFrame(autoScroll);
             
-            const viewportHeight = window.innerHeight;
-            // 视线焦点在屏幕下方 1/3 处（更适合横屏阅读）
-            const focusOffset = viewportHeight * 0.65;
-            
-            targetOffset = focusOffset - (cumulativeHeights[index] + lineHeights[index] / 2);
-            
-            if (!smooth) {
-                trackOffset = targetOffset;
-                updateTrackPosition();
-            }
-            
-            updateActiveLine(index);
-            updateProgress(index);
-            currentIndex = index;
-        }
-
-        function startAutoScroll() {
             function animate() {
-                const diff = targetOffset - trackOffset;
+                // 匀速接近目标
+                const diff = target - offset;
                 if (Math.abs(diff) > 0.5) {
-                    const speed = Math.max(0.5, Math.abs(diff) * 0.08) * scrollSpeed;
-                    trackOffset += diff > 0 ? speed : -speed;
-                    updateTrackPosition();
+                    // 恒定速度，不根据语速变化
+                    const step = Math.min(Math.abs(diff) * 0.05 * speed, 3 * speed);
+                    offset += diff > 0 ? step : -step;
+                    document.getElementById('track').style.transform = `translateY(${offset}px)`;
                 }
-                requestAnimationFrame(animate);
+                autoScroll = requestAnimationFrame(animate);
             }
             animate();
         }
 
-        function updateTrackPosition() {
-            document.getElementById('track').style.transform = `translateY(${trackOffset}px)`;
+        function goTo(index) {
+            if (index < 0 || index >= lines.length) return;
+            const viewport = window.innerHeight;
+            const focus = viewport * 0.6;
+            target = focus - (cumulative[index] + heights[index]/2);
+            updateActive(index);
+            updateProgress(index);
+            current = index;
         }
 
-        function updateActiveLine(index) {
-            lineElements.forEach((el, i) => {
-                el.classList.remove('active', 'prev');
-                if (i === index) {
-                    el.classList.add('active');
-                } else if (i < index) {
-                    el.classList.add('prev');
-                }
+        function updateActive(index) {
+            lineEls.forEach((el, i) => {
+                el.classList.toggle('active', i === index);
             });
         }
 
         function updateProgress(index) {
-            document.getElementById('progressChip').textContent = `${index + 1}/${scriptLines.length}`;
+            document.getElementById('progressPill').textContent = `${index + 1}/${lines.length}`;
         }
 
-        // 预判滚动
-        function checkSpeech(transcript) {
-            const text = transcript.toLowerCase().replace(/\s/g, '');
-            const currentText = scriptLines[currentIndex].toLowerCase().replace(/\s/g, '');
+        // 预判翻页 - 检测读完前几个字就开始滚动
+        function checkSpeech(text) {
+            text = text.toLowerCase().replace(/\s/g, '');
+            const currentText = lines[current].toLowerCase().replace(/\s/g, '');
             
-            // 匹配当前行结尾（快读完了）
-            if (currentText && text.includes(currentText.slice(-4))) {
-                if (currentIndex < scriptLines.length - 1) {
-                    setTimeout(() => smoothNext(), 300);
+            // 预判：匹配到当前行后4个字，说明快读完了
+            if (currentText.length > 4 && text.includes(currentText.slice(-4))) {
+                if (current < lines.length - 1) {
+                    // 提前滚动，给用户看下一行的时间
+                    setTimeout(() => next(), 200);
                 }
             }
             
-            // 直接匹配下一行（跳读）
-            if (currentIndex < scriptLines.length - 1) {
-                const nextText = scriptLines[currentIndex + 1].toLowerCase().replace(/\s/g, '');
-                if (nextText && text.includes(nextText.slice(0, 4))) {
-                    smoothNext();
+            // 如果直接跳到下一行开头，立即跟上
+            if (current < lines.length - 1) {
+                const nextText = lines[current + 1].toLowerCase().replace(/\s/g, '');
+                if (nextText.length > 3 && text.includes(nextText.slice(0, 3))) {
+                    next();
                 }
             }
         }
 
-        function smoothNext() {
-            if (currentIndex < scriptLines.length - 1) {
-                scrollToLine(currentIndex + 1);
+        function next() {
+            if (current < lines.length - 1) goTo(current + 1);
+        }
+
+        function prev() {
+            if (current > 0) goTo(current - 1);
+        }
+
+        // 速度设置 - 恒定不变，不自动调节
+        function setSpeed(val) {
+            speed = parseFloat(val);
+        }
+
+        function setFont(val) {
+            document.documentElement.style.setProperty('--font-size', val + 'px');
+            document.getElementById('fontVal').textContent = val + 'px';
+            // 重新计算
+            setTimeout(() => {
+                let sum = 0;
+                cumulative = [];
+                lineEls.forEach(el => {
+                    const h = el.offsetHeight;
+                    heights.push(h);
+                    cumulative.push(sum);
+                    sum += h;
+                });
+                goTo(current);
+            }, 100);
+        }
+
+        function setLine(val) {
+            const lh = val / 10;
+            document.documentElement.style.setProperty('--line-height', lh);
+            document.getElementById('lineVal').textContent = lh.toFixed(1);
+            setTimeout(() => {
+                let sum = 0;
+                cumulative = [];
+                lineEls.forEach((el, i) => {
+                    const h = el.offsetHeight;
+                    heights[i] = h;
+                    cumulative.push(sum);
+                    sum += h;
+                });
+                goTo(current);
+            }, 100);
+        }
+
+        // UI控制
+        function toggleUI() {
+            uiVisible = !uiVisible;
+            document.getElementById('uiTop').classList.toggle('show', uiVisible);
+            document.getElementById('controls').classList.toggle('show', uiVisible);
+            document.getElementById('trigger').classList.toggle('show', !uiVisible);
+        }
+
+        // 点击屏幕控制
+        let lastTap = 0;
+        document.getElementById('prompter').addEventListener('click', (e) => {
+            const now = Date.now();
+            const x = e.clientX;
+            const w = window.innerWidth;
+            
+            if (now - lastTap < 300) {
+                // 双击打开设置
+                openSettings();
+            } else if (x < w * 0.25) {
+                prev();
+            } else if (x > w * 0.75) {
+                next();
+            } else if (!uiVisible) {
+                toggleUI();
             }
+            
+            lastTap = now;
+        });
+
+        function openSettings() {
+            document.getElementById('overlay').classList.add('show');
+            document.getElementById('settings').classList.add('open');
         }
 
-        function smoothPrev() {
-            if (currentIndex > 0) {
-                scrollToLine(currentIndex - 1);
+        function closeSettings() {
+            document.getElementById('overlay').classList.remove('show');
+            document.getElementById('settings').classList.remove('open');
+        }
+
+        function exit() {
+            if (confirm('退出？')) {
+                if (document.exitFullscreen) document.exitFullscreen();
+                location.reload();
             }
-        }
-
-        // 手动控制
-        function manualNext() {
-            smoothNext();
-            if (navigator.vibrate) navigator.vibrate(10);
-        }
-
-        function manualPrev() {
-            smoothPrev();
-            if (navigator.vibrate) navigator.vibrate(10);
-        }
-
-        function adjustSpeed(delta) {
-            scrollSpeed = Math.max(0.3, Math.min(3.0, scrollSpeed + delta));
-            showToast(`速度 ${scrollSpeed.toFixed(1)}x`);
         }
 
         // 语音识别
@@ -749,194 +590,36 @@
 
             recognition.onstart = () => {
                 isRecording = true;
-                document.getElementById('statusDot').classList.add('active');
-                document.getElementById('statusText').textContent = '聆听中';
-                document.getElementById('micBtn').classList.add('recording');
+                document.getElementById('statusPill').textContent = '● 录音';
+                document.getElementById('statusPill').classList.add('recording');
             };
 
-            recognition.onresult = (event) => {
+            recognition.onresult = (e) => {
                 let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                    transcript += e.results[i][0].transcript;
                 }
                 checkSpeech(transcript);
             };
 
-            recognition.onerror = (e) => {
-                if (e.error === 'not-allowed') {
-                    showToast('请允许麦克风权限');
-                    stopVoice();
-                }
-            };
-
             recognition.onend = () => {
-                if (isRecording) {
-                    setTimeout(() => recognition.start(), 100);
-                }
+                if (isRecording) setTimeout(() => recognition.start(), 100);
             };
+
+            recognition.start();
         }
 
-        function toggleVoice() {
-            if (!recognition) return;
-            if (isRecording) {
-                stopVoice();
-            } else {
-                recognition.start();
-            }
+        function requestFullscreen() {
+            const el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         }
 
-        function stopVoice() {
-            isRecording = false;
-            try { recognition.stop(); } catch(e) {}
-            document.getElementById('statusDot').classList.remove('active');
-            document.getElementById('statusText').textContent = '暂停';
-            document.getElementById('micBtn').classList.remove('recording');
-        }
-
-        // 设置调节
-        function updateFontSize(val) {
-            document.documentElement.style.setProperty('--font-size', val + 'px');
-            document.getElementById('fontSizeValue').textContent = val + 'px';
-            // 重新计算高度
-            setTimeout(() => {
-                calculateHeights();
-                scrollToLine(currentIndex, false);
-            }, 50);
-        }
-
-        function updateLineHeight(val) {
-            const lh = val / 10;
-            document.documentElement.style.setProperty('--line-height', lh);
-            document.getElementById('lineHeightValue').textContent = lh.toFixed(1);
-            setTimeout(() => {
-                calculateHeights();
-                scrollToLine(currentIndex, false);
-            }, 50);
-        }
-
-        function updateFontWeight(val) {
-            const weight = val * 100;
-            document.documentElement.style.setProperty('--font-weight', weight);
-            const labels = {3: '细', 4: '偏细', 5: '中等', 6: '偏粗', 7: '粗'};
-            document.getElementById('fontWeightValue').textContent = labels[val] || '中等';
-        }
-
-        // 横竖屏检测
-        function checkOrientation() {
-            const isLandscape = window.innerWidth > window.innerHeight;
-            const hint = document.getElementById('landscapeHint');
-            
-            if (isLandscape) {
-                hint.classList.add('show');
-                setTimeout(() => hint.classList.remove('show'), 3000);
-            }
-        }
-
-        window.addEventListener('resize', () => {
-            checkOrientation();
-            // 重新计算
-            if (lineElements.length > 0) {
-                setTimeout(() => {
-                    calculateHeights();
-                    scrollToLine(currentIndex, false);
-                }, 100);
-            }
-        });
-
-        // 全屏控制
-        function enterFullscreen() {
-            start();
-            setTimeout(toggleFullscreen, 100);
-        }
-
-        function toggleFullscreen() {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                const elem = document.documentElement;
-                if (elem.requestFullscreen) {
-                    elem.requestFullscreen();
-                } else if (elem.webkitRequestFullscreen) {
-                    elem.webkitRequestFullscreen();
-                }
-                isFullscreen = true;
-                hideUI();
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                }
-                isFullscreen = false;
-                showUI();
-            }
-        }
-
-        function hideUI() {
-            document.getElementById('topBar').classList.add('hidden');
-            document.getElementById('controls').style.opacity = '0';
-            document.getElementById('fullscreenBtn').textContent = '⛶';
-            showToast('全屏模式：点击屏幕中央打开设置');
-        }
-
-        function showUI() {
-            document.getElementById('topBar').classList.remove('hidden');
-            document.getElementById('controls').style.opacity = '1';
-            document.getElementById('fullscreenBtn').textContent = '⛶';
-        }
-
-        // 点击控制
-        let lastTap = 0;
-        document.getElementById('stage').addEventListener('click', (e) => {
-            const now = Date.now();
-            const x = e.clientX;
-            const width = window.innerWidth;
-            
-            // 双击或点击中央打开设置
-            if (now - lastTap < 300 || (x > width * 0.4 && x < width * 0.6)) {
-                openSettings();
-            } else if (x < width * 0.3) {
-                manualPrev();
-            } else if (x > width * 0.7) {
-                manualNext();
-            }
-            
-            lastTap = now;
-        });
-
-        // 设置面板
-        function openSettings() {
-            document.getElementById('overlay').classList.add('show');
-            document.getElementById('settingsSheet').classList.add('open');
-        }
-
-        function closeSettings() {
-            document.getElementById('overlay').classList.remove('show');
-            document.getElementById('settingsSheet').classList.remove('open');
-        }
-
-        function exit() {
-            if (confirm('确定退出？')) {
-                stopVoice();
-                document.getElementById('prompter').classList.remove('active');
-                document.getElementById('startScreen').classList.remove('hidden');
-                closeSettings();
-                if (document.exitFullscreen) document.exitFullscreen();
-            }
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2000);
-        }
-
-        // 键盘
+        // 键盘控制
         document.addEventListener('keydown', (e) => {
-            if (!document.getElementById('prompter').classList.contains('active')) return;
-            if (e.key === 'ArrowDown' || e.key === ' ') manualNext();
-            if (e.key === 'ArrowUp') manualPrev();
-            if (e.key === 'f') toggleFullscreen();
-            if (e.key === 'Escape') closeSettings();
+            if (e.key === 'ArrowDown' || e.key === ' ') next();
+            if (e.key === 'ArrowUp') prev();
+            if (e.key === 'f') requestFullscreen();
         });
     </script>
 </body>
