@@ -114,7 +114,6 @@
             padding: 0 40px;
             top: 0;
             left: 0;
-            /* 关键：平滑过渡，不要猛跳 */
             transition: transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
             will-change: transform;
         }
@@ -142,6 +141,72 @@
             font-weight: 600;
             text-shadow: 0 0 10px rgba(255,255,255,0.3);
             color: #fff;
+        }
+
+        /* 🎤 麦克风收音提示 - 屏幕角落 */
+        .mic-indicator {
+            position: absolute;
+            top: max(20px, env(safe-area-inset-top));
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .mic-indicator.active {
+            opacity: 1;
+        }
+
+        .mic-icon {
+            width: 8px;
+            height: 8px;
+            background: #30D158;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .mic-indicator.active .mic-icon {
+            animation: mic-pulse 1.5s infinite;
+        }
+
+        @keyframes mic-pulse {
+            0%, 100% { 
+                transform: scale(1); 
+                box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.4);
+            }
+            50% { 
+                transform: scale(1.2); 
+                box-shadow: 0 0 0 8px rgba(48, 209, 88, 0);
+            }
+        }
+
+        /* 音频波形条 */
+        .wave-bars {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 16px;
+        }
+
+        .wave-bar {
+            width: 3px;
+            background: #30D158;
+            border-radius: 2px;
+            transition: height 0.1s;
+        }
+
+        .mic-text {
+            font-size: 12px;
+            color: #30D158;
+            font-weight: 500;
         }
 
         /* 设置按钮 */
@@ -320,16 +385,14 @@
     <!-- 启动页 -->
     <div class="start" id="start">
         <h1>平滑提词器</h1>
-        <div class="sub">匀速滚动 · 平滑翻页 · 不再猛跳</div>
+        <div class="sub">匀速滚动 · 平滑翻页 · 麦克风可视化</div>
         <textarea id="input" placeholder="粘贴台词，每行一句...">欢迎使用平滑提词器
-现在滚动会非常平滑
-不会再猛的一下往上跳
-而是匀速丝滑移动
-像电影字幕一样优雅
+现在会有麦克风收音提示
+左上角显示绿色指示灯
+当麦克风正在收音时
+会看到绿色脉冲和波形
+这样你就知道它在工作
 上下滑动屏幕翻页
-双指可以缩放字体
-点击右下角设置按钮
-可以调节各种参数
 祝你演讲成功</textarea>
         <button class="btn" onclick="start()">开始演讲</button>
         <button class="btn secondary" onclick="startFullscreen()">全屏模式</button>
@@ -339,13 +402,25 @@
     <div class="prompter" id="prompter">
         <div class="track" id="track"></div>
         
+        <!-- 🎤 麦克风收音提示 -->
+        <div class="mic-indicator" id="micIndicator">
+            <div class="mic-icon"></div>
+            <div class="wave-bars" id="waveBars">
+                <div class="wave-bar" style="height: 4px;"></div>
+                <div class="wave-bar" style="height: 8px;"></div>
+                <div class="wave-bar" style="height: 6px;"></div>
+                <div class="wave-bar" style="height: 10px;"></div>
+                <div class="wave-bar" style="height: 5px;"></div>
+            </div>
+            <span class="mic-text">聆听中</span>
+        </div>
+        
         <div class="hint" id="hint">上滑下一句 · 下滑上一句</div>
         
         <button class="fab" id="fab" onclick="openSettings()">⚙️</button>
         
         <div class="overlay" id="overlay" onclick="closeSettings()"></div>
         
-        <!-- 设置面板 - 带明确取消按钮 -->
         <div class="settings" id="settings">
             <div class="setting-header">
                 <div class="setting-title">设置</div>
@@ -374,13 +449,8 @@
                     <span class="value" id="smoothVal">标准</span>
                 </div>
                 <input type="range" class="slider" min="3" max="10" value="8" id="smoothSlider" oninput="updateSmooth(this.value)">
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
-                    <span>快</span>
-                    <span>慢而平滑</span>
-                </div>
             </div>
 
-            <!-- 明确的取消和确认按钮 -->
             <div class="setting-buttons">
                 <button class="btn-half btn-cancel" onclick="closeSettings()">取消</button>
                 <button class="btn-half btn-save" onclick="saveSettings()">完成</button>
@@ -393,14 +463,14 @@
         let lineEls = [];
         let current = 0;
         let targetY = 0;
-        let currentY = 0;
-        let animationId = null;
-        let transitionDuration = 0.8; // 滚动动画时长（秒）
+        let transitionDuration = 0.8;
         let isTouching = false;
         let startY = 0;
         let startTime = 0;
+        let recognition = null;
+        let isRecording = false;
 
-        // 初始化
+        // 开始
         function start() {
             const text = document.getElementById('input').value.trim();
             if (!text) return alert('请输入台词');
@@ -415,6 +485,7 @@
                 document.getElementById('fab').classList.add('show');
                 document.getElementById('hint').classList.add('show');
                 setTimeout(() => document.getElementById('hint').classList.remove('show'), 3000);
+                initVoice(); // 启动麦克风
             }, 100);
         }
 
@@ -440,48 +511,39 @@
                 lineEls.push(div);
             });
 
-            // 计算位置
             setTimeout(() => {
                 goTo(0, false);
             }, 50);
         }
 
-        // 核心：平滑滚动到指定行，不猛跳
+        // 平滑滚动
         function goTo(index, animate = true) {
             if (index < 0 || index >= lines.length) return;
             
             current = index;
             
-            // 计算目标位置（当前行在屏幕40%位置，中央偏上）
             const viewportHeight = window.innerHeight;
             const focusLine = lineEls[index];
             const lineHeight = focusLine.offsetHeight;
             const lineTop = focusLine.offsetTop;
             
-            // 目标：让当前行的顶部位于视口40%处
             targetY = -(lineTop - viewportHeight * 0.4 + lineHeight/2);
             
+            const track = document.getElementById('track');
             if (!animate) {
-                currentY = targetY;
-                updatePosition();
+                track.style.transition = 'none';
+                track.style.transform = `translateY(${targetY}px)`;
             } else {
-                // 使用CSS transition平滑移动，不猛跳
-                const track = document.getElementById('track');
                 track.style.transition = `transform ${transitionDuration}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
-                updatePosition();
+                track.style.transform = `translateY(${targetY}px)`;
             }
             
-            // 更新高亮
             lineEls.forEach((el, i) => {
                 el.classList.toggle('active', i === index);
             });
         }
 
-        function updatePosition() {
-            document.getElementById('track').style.transform = `translateY(${targetY}px)`;
-        }
-
-        // 手势控制 - 上下滑动翻页
+        // 手势控制
         function setupGestures() {
             const stage = document.getElementById('prompter');
             
@@ -489,18 +551,13 @@
                 startY = e.touches[0].clientY;
                 startTime = Date.now();
                 isTouching = true;
-                
-                // 触摸时暂停CSS过渡，跟随手指
                 document.getElementById('track').style.transition = 'none';
             }, { passive: true });
 
             stage.addEventListener('touchmove', (e) => {
                 if (!isTouching) return;
-                
                 const currentY_touch = e.touches[0].clientY;
                 const deltaY = startY - currentY_touch;
-                
-                // 跟随手指移动（阻尼效果）
                 const tempY = targetY - deltaY * 0.5;
                 document.getElementById('track').style.transform = `translateY(${tempY}px)`;
             }, { passive: true });
@@ -514,21 +571,12 @@
                 const deltaTime = Date.now() - startTime;
                 const velocity = Math.abs(deltaY) / deltaTime;
                 
-                // 恢复平滑过渡
-                const track = document.getElementById('track');
-                track.style.transition = `transform ${transitionDuration}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+                document.getElementById('track').style.transition = `transform ${transitionDuration}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
                 
-                // 判断滑动距离或速度
                 if (Math.abs(deltaY) > 80 || velocity > 0.6) {
-                    if (deltaY > 0) {
-                        // 向上滑 - 下一句
-                        next();
-                    } else {
-                        // 向下滑 - 上一句
-                        prev();
-                    }
+                    if (deltaY > 0) next();
+                    else prev();
                 } else {
-                    // 回弹到当前句
                     goTo(current);
                 }
             }, { passive: true });
@@ -537,26 +585,32 @@
         setupGestures();
 
         function next() {
-            if (current < lines.length - 1) {
-                goTo(current + 1);
-            }
+            if (current < lines.length - 1) goTo(current + 1);
         }
 
         function prev() {
-            if (current > 0) {
-                goTo(current - 1);
-            }
+            if (current > 0) goTo(current - 1);
         }
 
-        // 语音识别
+        // 🎤 麦克风语音识别 + 可视化
         function initVoice() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) return;
+            if (!SpeechRecognition) {
+                console.log('浏览器不支持语音识别');
+                return;
+            }
 
-            const recognition = new SpeechRecognition();
-            recognition.continuous = false;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false; // iOS必须false
             recognition.interimResults = true;
             recognition.lang = 'zh-CN';
+
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('micIndicator').classList.add('active');
+                animateWave(); // 启动波形动画
+                console.log('🎤 开始聆听');
+            };
 
             recognition.onresult = (e) => {
                 let text = '';
@@ -566,13 +620,49 @@
                 checkSpeech(text);
             };
 
+            recognition.onerror = (e) => {
+                if (e.error === 'not-allowed') {
+                    console.log('麦克风权限被拒绝');
+                    stopVoice();
+                }
+            };
+
             recognition.onend = () => {
-                recognition.start();
+                if (isRecording) {
+                    // iOS自动重启
+                    setTimeout(() => {
+                        if (isRecording) recognition.start();
+                    }, 100);
+                } else {
+                    document.getElementById('micIndicator').classList.remove('active');
+                }
             };
 
             recognition.start();
         }
 
+        function stopVoice() {
+            isRecording = false;
+            if (recognition) recognition.stop();
+            document.getElementById('micIndicator').classList.remove('active');
+        }
+
+        // 音频波形动画
+        function animateWave() {
+            if (!isRecording) return;
+            
+            const bars = document.querySelectorAll('.wave-bar');
+            bars.forEach(bar => {
+                const height = Math.random() * 12 + 4; // 4-16px随机高度
+                bar.style.height = height + 'px';
+            });
+            
+            requestAnimationFrame(() => {
+                setTimeout(animateWave, 100); // 100ms更新一次
+            });
+        }
+
+        // 语音识别翻页逻辑
         function checkSpeech(text) {
             text = text.toLowerCase().replace(/\s/g, '');
             const currentText = lines[current].toLowerCase().replace(/\s/g, '');
@@ -593,26 +683,27 @@
             }
         }
 
-        // 设置面板控制
+        // 设置面板
         function openSettings() {
             document.getElementById('overlay').classList.add('show');
             document.getElementById('settings').classList.add('open');
             document.getElementById('fab').classList.remove('show');
+            // 暂停语音显示，避免干扰设置
+            document.getElementById('micIndicator').style.opacity = '0';
         }
 
         function closeSettings() {
             document.getElementById('overlay').classList.remove('show');
             document.getElementById('settings').classList.remove('open');
             document.getElementById('fab').classList.add('show');
+            document.getElementById('micIndicator').style.opacity = '';
+            setTimeout(() => goTo(current, false), 300);
         }
 
         function saveSettings() {
             closeSettings();
-            // 重新计算位置确保准确
-            setTimeout(() => goTo(current, false), 300);
         }
 
-        // 设置调节
         function updateFont(val) {
             document.documentElement.style.setProperty('--font-size', val + 'px');
             document.getElementById('fontVal').textContent = val + 'px';
@@ -625,7 +716,6 @@
         }
 
         function updateSmooth(val) {
-            // 值越大，滚动越慢越平滑
             transitionDuration = val / 10;
             const texts = {3: '极快', 5: '快', 8: '标准', 10: '极平滑'};
             document.getElementById('smoothVal').textContent = texts[val] || '标准';
@@ -633,6 +723,7 @@
 
         function exit() {
             if (confirm('退出演讲？')) {
+                stopVoice();
                 if (document.exitFullscreen) document.exitFullscreen();
                 location.reload();
             }
@@ -646,7 +737,7 @@
             }
         }, 30000);
 
-        // 键盘控制
+        // 键盘
         document.addEventListener('keydown', (e) => {
             if (!document.getElementById('prompter').classList.contains('active')) return;
             if (e.key === 'ArrowDown' || e.key === ' ') next();
