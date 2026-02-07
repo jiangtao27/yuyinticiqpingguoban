@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>纯净提词器</title>
+    <title>平滑提词器</title>
     <style>
         * {
             margin: 0;
@@ -107,32 +107,32 @@
             display: block;
         }
 
-        /* 滚动轨道 - 修复文字显示不全 */
+        /* 滚动轨道 */
         .track {
             position: absolute;
             width: 100%;
             padding: 0 40px;
             top: 0;
             left: 0;
+            /* 关键：平滑过渡，不要猛跳 */
+            transition: transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
             will-change: transform;
         }
 
-        /* 字幕行 - 修复显示不全问题 */
         .line {
             width: 100%;
             text-align: center;
             font-size: var(--font-size);
             line-height: var(--line-height);
             color: #fff;
-            padding: 15px 0; /* 增加上下padding确保不截断 */
+            padding: 15px 0;
             margin: 0;
             font-weight: 400;
             display: flex;
             align-items: center;
             justify-content: center;
-            /* 移除固定min-height，使用自然高度+padding */
             min-height: auto;
-            overflow: visible; /* 确保文字不被截断 */
+            overflow: visible;
             word-wrap: break-word;
             word-break: break-all;
         }
@@ -144,7 +144,7 @@
             color: #fff;
         }
 
-        /* 浮动设置按钮 */
+        /* 设置按钮 */
         .fab {
             position: absolute;
             bottom: 30px;
@@ -164,7 +164,6 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            -webkit-user-select: none;
         }
 
         .fab.show {
@@ -177,74 +176,116 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(10,10,10,0.98);
+            background: rgba(20,20,20,0.98);
             border-radius: 20px 20px 0 0;
-            padding: 30px;
-            padding-bottom: calc(30px + env(safe-area-inset-bottom));
+            padding: 25px;
+            padding-bottom: calc(25px + env(safe-area-inset-bottom));
             transform: translateY(100%);
             transition: transform 0.3s;
             z-index: 200;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
         }
 
         .settings.open {
             transform: translateY(0);
         }
 
+        .setting-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        .setting-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .btn-close-x {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #333;
+            border: none;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .setting-row {
-            margin-bottom: 25px;
+            margin-bottom: 30px;
         }
 
         .label {
             display: flex;
             justify-content: space-between;
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 10px;
-            font-family: inherit;
+            font-size: 15px;
+            color: #888;
+            margin-bottom: 12px;
         }
 
         .value {
             color: #fff;
+            font-weight: 600;
         }
 
         .slider {
             width: 100%;
             -webkit-appearance: none;
-            height: 4px;
-            border-radius: 2px;
+            height: 6px;
+            border-radius: 3px;
             background: rgba(255,255,255,0.2);
             outline: none;
         }
 
         .slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             background: #fff;
             cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
-        .btn-close {
-            width: 100%;
+        .setting-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .btn-half {
+            flex: 1;
             padding: 16px;
-            background: #333;
             border: none;
             border-radius: 12px;
-            color: #fff;
             font-size: 16px;
-            margin-top: 10px;
-            font-family: inherit;
+            font-weight: 600;
             cursor: pointer;
+        }
+
+        .btn-cancel {
+            background: #333;
+            color: #fff;
+        }
+
+        .btn-save {
+            background: #fff;
+            color: #000;
         }
 
         .overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.5);
             opacity: 0;
             pointer-events: none;
             z-index: 150;
@@ -255,10 +296,10 @@
             pointer-events: auto;
         }
 
-        /* 速度提示 */
+        /* 提示 */
         .hint {
             position: absolute;
-            top: 100px;
+            top: 80px;
             left: 50%;
             transform: translateX(-50%);
             color: rgba(255,255,255,0.3);
@@ -267,22 +308,10 @@
             transition: opacity 0.3s;
             pointer-events: none;
             text-align: center;
-            white-space: nowrap;
         }
 
         .hint.show {
             opacity: 1;
-        }
-
-        /* 全屏强制隐藏浏览器UI */
-        :fullscreen {
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        :fullscreen .prompter {
-            width: 100vw;
-            height: 100vh;
         }
     </style>
 </head>
@@ -290,17 +319,17 @@
 
     <!-- 启动页 -->
     <div class="start" id="start">
-        <h1>纯净提词器</h1>
-        <div class="sub">全屏无抬头 · 纯白字幕 · 手势滑动 · 支持缩放</div>
-        <textarea id="input" placeholder="粘贴台词，每行一句...">欢迎使用纯净提词器
-现在可以双指缩放调整大小
+        <h1>平滑提词器</h1>
+        <div class="sub">匀速滚动 · 平滑翻页 · 不再猛跳</div>
+        <textarea id="input" placeholder="粘贴台词，每行一句...">欢迎使用平滑提词器
+现在滚动会非常平滑
+不会再猛的一下往上跳
+而是匀速丝滑移动
+像电影字幕一样优雅
 上下滑动屏幕翻页
-不用点击任何地方
-当前句子在屏幕中央偏上
-所有文字都是纯白色
-横屏时请旋转手机后点击全屏
-确保没有任何抬头遮挡
-文字显示完整不截断
+双指可以缩放字体
+点击右下角设置按钮
+可以调节各种参数
 祝你演讲成功</textarea>
         <button class="btn" onclick="start()">开始演讲</button>
         <button class="btn secondary" onclick="startFullscreen()">全屏模式</button>
@@ -310,34 +339,52 @@
     <div class="prompter" id="prompter">
         <div class="track" id="track"></div>
         
-        <div class="hint" id="hint">上滑下一句 · 下滑上一句<br>双指缩放调整大小</div>
+        <div class="hint" id="hint">上滑下一句 · 下滑上一句</div>
         
         <button class="fab" id="fab" onclick="openSettings()">⚙️</button>
         
         <div class="overlay" id="overlay" onclick="closeSettings()"></div>
+        
+        <!-- 设置面板 - 带明确取消按钮 -->
         <div class="settings" id="settings">
+            <div class="setting-header">
+                <div class="setting-title">设置</div>
+                <button class="btn-close-x" onclick="closeSettings()">✕</button>
+            </div>
+
             <div class="setting-row">
                 <div class="label">
                     <span>字体大小</span>
                     <span class="value" id="fontVal">36px</span>
                 </div>
-                <input type="range" class="slider" min="20" max="72" value="36" oninput="setFont(this.value)">
+                <input type="range" class="slider" min="20" max="72" value="36" id="fontSlider" oninput="updateFont(this.value)">
             </div>
+
             <div class="setting-row">
                 <div class="label">
                     <span>行间距</span>
                     <span class="value" id="lineVal">1.6</span>
                 </div>
-                <input type="range" class="slider" min="10" max="30" value="16" oninput="setLine(this.value)">
+                <input type="range" class="slider" min="10" max="30" value="16" id="lineSlider" oninput="updateLine(this.value)">
             </div>
+
             <div class="setting-row">
                 <div class="label">
-                    <span>滚动速度</span>
-                    <span class="value" id="speedVal">1.0x</span>
+                    <span>滚动平滑度</span>
+                    <span class="value" id="smoothVal">标准</span>
                 </div>
-                <input type="range" class="slider" min="5" max="25" value="10" oninput="setSpeed(this.value)">
+                <input type="range" class="slider" min="3" max="10" value="8" id="smoothSlider" oninput="updateSmooth(this.value)">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+                    <span>快</span>
+                    <span>慢而平滑</span>
+                </div>
             </div>
-            <button class="btn-close" onclick="exit()">退出演讲</button>
+
+            <!-- 明确的取消和确认按钮 -->
+            <div class="setting-buttons">
+                <button class="btn-half btn-cancel" onclick="closeSettings()">取消</button>
+                <button class="btn-half btn-save" onclick="saveSettings()">完成</button>
+            </div>
         </div>
     </div>
 
@@ -345,15 +392,15 @@
         let lines = [];
         let lineEls = [];
         let current = 0;
-        let offset = 0;
-        let target = 0;
-        let scrollSpeed = 1.0;
-        let autoScroll = null;
-        let heights = [];
-        let cumulative = [];
-        let recognition = null;
+        let targetY = 0;
+        let currentY = 0;
+        let animationId = null;
+        let transitionDuration = 0.8; // 滚动动画时长（秒）
         let isTouching = false;
+        let startY = 0;
+        let startTime = 0;
 
+        // 初始化
         function start() {
             const text = document.getElementById('input').value.trim();
             if (!text) return alert('请输入台词');
@@ -367,9 +414,7 @@
             setTimeout(() => {
                 document.getElementById('fab').classList.add('show');
                 document.getElementById('hint').classList.add('show');
-                setTimeout(() => document.getElementById('hint').classList.remove('show'), 4000);
-                startScroll();
-                initVoice();
+                setTimeout(() => document.getElementById('hint').classList.remove('show'), 3000);
             }, 100);
         }
 
@@ -379,7 +424,6 @@
                 const el = document.documentElement;
                 if (el.requestFullscreen) el.requestFullscreen();
                 else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-                else if (el.msRequestFullscreen) el.msRequestFullscreen();
             }, 100);
         }
 
@@ -396,86 +440,69 @@
                 lineEls.push(div);
             });
 
-            // 计算布局 - 使用实际高度确保不截断
+            // 计算位置
             setTimeout(() => {
-                let sum = 0;
-                heights = [];
-                cumulative = [];
-                lineEls.forEach(el => {
-                    // 获取实际渲染高度，包括padding
-                    const rect = el.getBoundingClientRect();
-                    const h = rect.height;
-                    heights.push(h);
-                    cumulative.push(sum);
-                    sum += h;
-                });
-                
                 goTo(0, false);
             }, 50);
         }
 
-        function goTo(index, smooth = true) {
+        // 核心：平滑滚动到指定行，不猛跳
+        function goTo(index, animate = true) {
             if (index < 0 || index >= lines.length) return;
             
-            const viewport = window.innerHeight;
-            const focus = viewport * 0.4; // 中央偏上
+            current = index;
             
-            target = focus - (cumulative[index] + heights[index]/2);
+            // 计算目标位置（当前行在屏幕40%位置，中央偏上）
+            const viewportHeight = window.innerHeight;
+            const focusLine = lineEls[index];
+            const lineHeight = focusLine.offsetHeight;
+            const lineTop = focusLine.offsetTop;
             
-            if (!smooth) {
-                offset = target;
-                updateTrack();
+            // 目标：让当前行的顶部位于视口40%处
+            targetY = -(lineTop - viewportHeight * 0.4 + lineHeight/2);
+            
+            if (!animate) {
+                currentY = targetY;
+                updatePosition();
+            } else {
+                // 使用CSS transition平滑移动，不猛跳
+                const track = document.getElementById('track');
+                track.style.transition = `transform ${transitionDuration}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+                updatePosition();
             }
             
+            // 更新高亮
             lineEls.forEach((el, i) => {
                 el.classList.toggle('active', i === index);
             });
-            
-            current = index;
         }
 
-        function updateTrack() {
-            document.getElementById('track').style.transform = `translateY(${offset}px)`;
+        function updatePosition() {
+            document.getElementById('track').style.transform = `translateY(${targetY}px)`;
         }
 
-        function startScroll() {
-            function animate() {
-                const diff = target - offset;
-                if (Math.abs(diff) > 0.5) {
-                    const step = Math.min(Math.abs(diff) * 0.08 * scrollSpeed, 5 * scrollSpeed);
-                    offset += diff > 0 ? step : -step;
-                    updateTrack();
-                }
-                autoScroll = requestAnimationFrame(animate);
-            }
-            animate();
-        }
-
-        // 手势控制
-        let touchStartY = 0;
-        let touchStartTime = 0;
-
+        // 手势控制 - 上下滑动翻页
         function setupGestures() {
             const stage = document.getElementById('prompter');
             
             stage.addEventListener('touchstart', (e) => {
-                touchStartY = e.touches[0].clientY;
-                touchStartTime = Date.now();
+                startY = e.touches[0].clientY;
+                startTime = Date.now();
                 isTouching = true;
+                
+                // 触摸时暂停CSS过渡，跟随手指
+                document.getElementById('track').style.transition = 'none';
             }, { passive: true });
 
             stage.addEventListener('touchmove', (e) => {
                 if (!isTouching) return;
                 
-                const currentY = e.touches[0].clientY;
-                const diff = touchStartY - currentY;
+                const currentY_touch = e.touches[0].clientY;
+                const deltaY = startY - currentY_touch;
                 
-                // 跟随手指
-                const viewport = window.innerHeight;
-                const focus = viewport * 0.4;
-                const tempTarget = focus - (cumulative[current] + heights[current]/2) - diff;
-                offset = tempTarget;
-                updateTrack();
+                // 跟随手指移动（阻尼效果）
+                const tempY = targetY - deltaY * 0.5;
+                document.getElementById('track').style.transform = `translateY(${tempY}px)`;
             }, { passive: true });
 
             stage.addEventListener('touchend', (e) => {
@@ -483,17 +510,25 @@
                 isTouching = false;
                 
                 const endY = e.changedTouches[0].clientY;
-                const diff = touchStartY - endY;
-                const duration = Date.now() - touchStartTime;
-                const velocity = Math.abs(diff) / duration;
+                const deltaY = startY - endY;
+                const deltaTime = Date.now() - startTime;
+                const velocity = Math.abs(deltaY) / deltaTime;
                 
-                if (Math.abs(diff) > 50 || velocity > 0.5) {
-                    if (diff > 0) {
+                // 恢复平滑过渡
+                const track = document.getElementById('track');
+                track.style.transition = `transform ${transitionDuration}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+                
+                // 判断滑动距离或速度
+                if (Math.abs(deltaY) > 80 || velocity > 0.6) {
+                    if (deltaY > 0) {
+                        // 向上滑 - 下一句
                         next();
                     } else {
+                        // 向下滑 - 上一句
                         prev();
                     }
                 } else {
+                    // 回弹到当前句
                     goTo(current);
                 }
             }, { passive: true });
@@ -502,11 +537,15 @@
         setupGestures();
 
         function next() {
-            if (current < lines.length - 1) goTo(current + 1);
+            if (current < lines.length - 1) {
+                goTo(current + 1);
+            }
         }
 
         function prev() {
-            if (current > 0) goTo(current - 1);
+            if (current > 0) {
+                goTo(current - 1);
+            }
         }
 
         // 语音识别
@@ -514,12 +553,10 @@
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) return;
 
-            recognition = new SpeechRecognition();
+            const recognition = new SpeechRecognition();
             recognition.continuous = false;
             recognition.interimResults = true;
             recognition.lang = 'zh-CN';
-
-            recognition.onstart = () => {};
 
             recognition.onresult = (e) => {
                 let text = '';
@@ -530,7 +567,7 @@
             };
 
             recognition.onend = () => {
-                if (recognition) setTimeout(() => recognition.start(), 50);
+                recognition.start();
             };
 
             recognition.start();
@@ -540,12 +577,14 @@
             text = text.toLowerCase().replace(/\s/g, '');
             const currentText = lines[current].toLowerCase().replace(/\s/g, '');
             
+            // 读到当前行末尾，预判翻页
             if (currentText.length > 3 && text.includes(currentText.slice(-3))) {
                 if (current < lines.length - 1) {
-                    setTimeout(() => next(), 150);
+                    setTimeout(() => next(), 200);
                 }
             }
             
+            // 直接匹配下一句开头
             if (current < lines.length - 1) {
                 const nextText = lines[current + 1].toLowerCase().replace(/\s/g, '');
                 if (nextText.length > 2 && text.includes(nextText.slice(0, 2))) {
@@ -554,48 +593,7 @@
             }
         }
 
-        // 设置
-        function setFont(val) {
-            document.documentElement.style.setProperty('--font-size', val + 'px');
-            document.getElementById('fontVal').textContent = val + 'px';
-            // 重新计算高度确保不截断
-            setTimeout(() => {
-                let sum = 0;
-                cumulative = [];
-                lineEls.forEach((el, i) => {
-                    const rect = el.getBoundingClientRect();
-                    const h = rect.height;
-                    heights[i] = h;
-                    cumulative.push(sum);
-                    sum += h;
-                });
-                goTo(current, false);
-            }, 100);
-        }
-
-        function setLine(val) {
-            const lh = val / 10;
-            document.documentElement.style.setProperty('--line-height', lh);
-            document.getElementById('lineVal').textContent = lh.toFixed(1);
-            setTimeout(() => {
-                let sum = 0;
-                cumulative = [];
-                lineEls.forEach((el, i) => {
-                    const rect = el.getBoundingClientRect();
-                    const h = rect.height;
-                    heights[i] = h;
-                    cumulative.push(sum);
-                    sum += h;
-                });
-                goTo(current, false);
-            }, 100);
-        }
-
-        function setSpeed(val) {
-            scrollSpeed = val / 10;
-            document.getElementById('speedVal').textContent = scrollSpeed.toFixed(1) + 'x';
-        }
-
+        // 设置面板控制
         function openSettings() {
             document.getElementById('overlay').classList.add('show');
             document.getElementById('settings').classList.add('open');
@@ -606,6 +604,31 @@
             document.getElementById('overlay').classList.remove('show');
             document.getElementById('settings').classList.remove('open');
             document.getElementById('fab').classList.add('show');
+        }
+
+        function saveSettings() {
+            closeSettings();
+            // 重新计算位置确保准确
+            setTimeout(() => goTo(current, false), 300);
+        }
+
+        // 设置调节
+        function updateFont(val) {
+            document.documentElement.style.setProperty('--font-size', val + 'px');
+            document.getElementById('fontVal').textContent = val + 'px';
+        }
+
+        function updateLine(val) {
+            const lh = val / 10;
+            document.documentElement.style.setProperty('--line-height', lh);
+            document.getElementById('lineVal').textContent = lh.toFixed(1);
+        }
+
+        function updateSmooth(val) {
+            // 值越大，滚动越慢越平滑
+            transitionDuration = val / 10;
+            const texts = {3: '极快', 5: '快', 8: '标准', 10: '极平滑'};
+            document.getElementById('smoothVal').textContent = texts[val] || '标准';
         }
 
         function exit() {
@@ -622,6 +645,14 @@
                 history.back();
             }
         }, 30000);
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('prompter').classList.contains('active')) return;
+            if (e.key === 'ArrowDown' || e.key === ' ') next();
+            if (e.key === 'ArrowUp') prev();
+            if (e.key === 'Escape') closeSettings();
+        });
     </script>
 </body>
 </html>
