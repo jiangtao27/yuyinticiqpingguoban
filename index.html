@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>纯净提词器</title>
@@ -12,7 +12,6 @@
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            user-select: none;
         }
 
         :root {
@@ -40,6 +39,7 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .start.hidden { display: none; }
@@ -71,6 +71,7 @@
             resize: none;
             margin-bottom: 15px;
             -webkit-user-select: text;
+            font-family: inherit;
         }
 
         .btn {
@@ -84,6 +85,7 @@
             font-weight: 600;
             cursor: pointer;
             margin-bottom: 10px;
+            font-family: inherit;
         }
 
         .btn.secondary {
@@ -91,21 +93,21 @@
             color: #fff;
         }
 
-        /* 提词器主体 - 全屏无抬头 */
+        /* 提词器主体 */
         .prompter {
             display: none;
             position: fixed;
             inset: 0;
             background: #000;
             overflow: hidden;
-            touch-action: pan-y; /* 允许垂直滑动 */
+            touch-action: pan-y;
         }
 
         .prompter.active {
             display: block;
         }
 
-        /* 滚动轨道 */
+        /* 滚动轨道 - 修复文字显示不全 */
         .track {
             position: absolute;
             width: 100%;
@@ -115,32 +117,34 @@
             will-change: transform;
         }
 
-        /* 字幕统一纯白，不变暗 */
+        /* 字幕行 - 修复显示不全问题 */
         .line {
             width: 100%;
             text-align: center;
             font-size: var(--font-size);
             line-height: var(--line-height);
-            color: #fff; /* 统一纯白 */
-            padding: 0;
+            color: #fff;
+            padding: 15px 0; /* 增加上下padding确保不截断 */
             margin: 0;
             font-weight: 400;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: calc(var(--font-size) * var(--line-height));
-            /* 无透明度变化，无颜色差异 */
+            /* 移除固定min-height，使用自然高度+padding */
+            min-height: auto;
+            overflow: visible; /* 确保文字不被截断 */
+            word-wrap: break-word;
+            word-break: break-all;
         }
 
-        /* 当前行只加轻微缩放，颜色不变 */
         .line.active {
             transform: scale(1.05);
             font-weight: 600;
             text-shadow: 0 0 10px rgba(255,255,255,0.3);
-            color: #fff; /* 确保还是纯白 */
+            color: #fff;
         }
 
-        /* 浮动设置按钮 - 极简 */
+        /* 浮动设置按钮 */
         .fab {
             position: absolute;
             bottom: 30px;
@@ -159,6 +163,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            cursor: pointer;
+            -webkit-user-select: none;
         }
 
         .fab.show {
@@ -178,6 +184,9 @@
             transform: translateY(100%);
             transition: transform 0.3s;
             z-index: 200;
+            max-height: 80vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .settings.open {
@@ -194,6 +203,7 @@
             font-size: 14px;
             color: #666;
             margin-bottom: 10px;
+            font-family: inherit;
         }
 
         .value {
@@ -227,6 +237,8 @@
             color: #fff;
             font-size: 16px;
             margin-top: 10px;
+            font-family: inherit;
+            cursor: pointer;
         }
 
         .overlay {
@@ -254,6 +266,8 @@
             opacity: 0;
             transition: opacity 0.3s;
             pointer-events: none;
+            text-align: center;
+            white-space: nowrap;
         }
 
         .hint.show {
@@ -270,11 +284,6 @@
             width: 100vw;
             height: 100vh;
         }
-
-        /* 隐藏滚动条 */
-        ::-webkit-scrollbar {
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -282,14 +291,16 @@
     <!-- 启动页 -->
     <div class="start" id="start">
         <h1>纯净提词器</h1>
-        <div class="sub">全屏无抬头 · 纯白字幕 · 手势滑动</div>
+        <div class="sub">全屏无抬头 · 纯白字幕 · 手势滑动 · 支持缩放</div>
         <textarea id="input" placeholder="粘贴台词，每行一句...">欢迎使用纯净提词器
+现在可以双指缩放调整大小
 上下滑动屏幕翻页
 不用点击任何地方
 当前句子在屏幕中央偏上
 所有文字都是纯白色
 横屏时请旋转手机后点击全屏
 确保没有任何抬头遮挡
+文字显示完整不截断
 祝你演讲成功</textarea>
         <button class="btn" onclick="start()">开始演讲</button>
         <button class="btn secondary" onclick="startFullscreen()">全屏模式</button>
@@ -299,7 +310,7 @@
     <div class="prompter" id="prompter">
         <div class="track" id="track"></div>
         
-        <div class="hint" id="hint">上滑下一句 · 下滑上一句</div>
+        <div class="hint" id="hint">上滑下一句 · 下滑上一句<br>双指缩放调整大小</div>
         
         <button class="fab" id="fab" onclick="openSettings()">⚙️</button>
         
@@ -310,14 +321,14 @@
                     <span>字体大小</span>
                     <span class="value" id="fontVal">36px</span>
                 </div>
-                <input type="range" class="slider" min="24" max="56" value="36" oninput="setFont(this.value)">
+                <input type="range" class="slider" min="20" max="72" value="36" oninput="setFont(this.value)">
             </div>
             <div class="setting-row">
                 <div class="label">
                     <span>行间距</span>
                     <span class="value" id="lineVal">1.6</span>
                 </div>
-                <input type="range" class="slider" min="12" max="24" value="16" oninput="setLine(this.value)">
+                <input type="range" class="slider" min="10" max="30" value="16" oninput="setLine(this.value)">
             </div>
             <div class="setting-row">
                 <div class="label">
@@ -341,10 +352,6 @@
         let heights = [];
         let cumulative = [];
         let recognition = null;
-
-        // 手势变量
-        let touchStartY = 0;
-        let touchStartTime = 0;
         let isTouching = false;
 
         function start() {
@@ -356,12 +363,11 @@
             document.getElementById('prompter').classList.add('active');
             
             init();
-            setupGestures();
             
             setTimeout(() => {
                 document.getElementById('fab').classList.add('show');
                 document.getElementById('hint').classList.add('show');
-                setTimeout(() => document.getElementById('hint').classList.remove('show'), 3000);
+                setTimeout(() => document.getElementById('hint').classList.remove('show'), 4000);
                 startScroll();
                 initVoice();
             }, 100);
@@ -390,29 +396,29 @@
                 lineEls.push(div);
             });
 
-            // 计算布局
+            // 计算布局 - 使用实际高度确保不截断
             setTimeout(() => {
                 let sum = 0;
                 heights = [];
                 cumulative = [];
                 lineEls.forEach(el => {
-                    const h = el.offsetHeight;
+                    // 获取实际渲染高度，包括padding
+                    const rect = el.getBoundingClientRect();
+                    const h = rect.height;
                     heights.push(h);
                     cumulative.push(sum);
                     sum += h;
                 });
                 
-                // 初始位置：第一行在中央偏上（40%位置）
                 goTo(0, false);
             }, 50);
         }
 
-        // 核心：滚动到指定行，视线在中央偏上（40%）
         function goTo(index, smooth = true) {
             if (index < 0 || index >= lines.length) return;
             
             const viewport = window.innerHeight;
-            const focus = viewport * 0.4; // 中央偏上（40%位置）
+            const focus = viewport * 0.4; // 中央偏上
             
             target = focus - (cumulative[index] + heights[index]/2);
             
@@ -421,7 +427,6 @@
                 updateTrack();
             }
             
-            // 更新当前行状态（仅缩放，颜色不变）
             lineEls.forEach((el, i) => {
                 el.classList.toggle('active', i === index);
             });
@@ -433,12 +438,10 @@
             document.getElementById('track').style.transform = `translateY(${offset}px)`;
         }
 
-        // 匀速滚动动画
         function startScroll() {
             function animate() {
                 const diff = target - offset;
                 if (Math.abs(diff) > 0.5) {
-                    // 恒定速度，匀速接近
                     const step = Math.min(Math.abs(diff) * 0.08 * scrollSpeed, 5 * scrollSpeed);
                     offset += diff > 0 ? step : -step;
                     updateTrack();
@@ -448,7 +451,10 @@
             animate();
         }
 
-        // 手势控制核心 - 上下滑动翻页
+        // 手势控制
+        let touchStartY = 0;
+        let touchStartTime = 0;
+
         function setupGestures() {
             const stage = document.getElementById('prompter');
             
@@ -460,18 +466,17 @@
 
             stage.addEventListener('touchmove', (e) => {
                 if (!isTouching) return;
-                e.preventDefault(); // 防止页面滚动
                 
                 const currentY = e.touches[0].clientY;
                 const diff = touchStartY - currentY;
                 
-                // 跟随手指移动（预览效果）
+                // 跟随手指
                 const viewport = window.innerHeight;
                 const focus = viewport * 0.4;
                 const tempTarget = focus - (cumulative[current] + heights[current]/2) - diff;
                 offset = tempTarget;
                 updateTrack();
-            }, { passive: false });
+            }, { passive: true });
 
             stage.addEventListener('touchend', (e) => {
                 if (!isTouching) return;
@@ -482,21 +487,19 @@
                 const duration = Date.now() - touchStartTime;
                 const velocity = Math.abs(diff) / duration;
                 
-                // 判断滑动距离或速度
                 if (Math.abs(diff) > 50 || velocity > 0.5) {
                     if (diff > 0) {
-                        // 向上滑 -> 下一句
                         next();
                     } else {
-                        // 向下滑 -> 上一句
                         prev();
                     }
                 } else {
-                    // 滑动不够，回弹到当前句
                     goTo(current);
                 }
             }, { passive: true });
         }
+
+        setupGestures();
 
         function next() {
             if (current < lines.length - 1) goTo(current + 1);
@@ -506,7 +509,7 @@
             if (current > 0) goTo(current - 1);
         }
 
-        // 语音识别 - 预判翻页
+        // 语音识别
         function initVoice() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) return;
@@ -516,9 +519,7 @@
             recognition.interimResults = true;
             recognition.lang = 'zh-CN';
 
-            recognition.onstart = () => {
-                // 录音开始，不显示UI变化，保持纯净
-            };
+            recognition.onstart = () => {};
 
             recognition.onresult = (e) => {
                 let text = '';
@@ -539,14 +540,12 @@
             text = text.toLowerCase().replace(/\s/g, '');
             const currentText = lines[current].toLowerCase().replace(/\s/g, '');
             
-            // 预判：读到当前行后3个字，准备翻页
             if (currentText.length > 3 && text.includes(currentText.slice(-3))) {
                 if (current < lines.length - 1) {
                     setTimeout(() => next(), 150);
                 }
             }
             
-            // 如果已经读到下一句开头，立即跟上
             if (current < lines.length - 1) {
                 const nextText = lines[current + 1].toLowerCase().replace(/\s/g, '');
                 if (nextText.length > 2 && text.includes(nextText.slice(0, 2))) {
@@ -555,15 +554,17 @@
             }
         }
 
-        // 设置调节
+        // 设置
         function setFont(val) {
             document.documentElement.style.setProperty('--font-size', val + 'px');
             document.getElementById('fontVal').textContent = val + 'px';
+            // 重新计算高度确保不截断
             setTimeout(() => {
                 let sum = 0;
                 cumulative = [];
                 lineEls.forEach((el, i) => {
-                    const h = el.offsetHeight;
+                    const rect = el.getBoundingClientRect();
+                    const h = rect.height;
                     heights[i] = h;
                     cumulative.push(sum);
                     sum += h;
@@ -580,7 +581,8 @@
                 let sum = 0;
                 cumulative = [];
                 lineEls.forEach((el, i) => {
-                    const h = el.offsetHeight;
+                    const rect = el.getBoundingClientRect();
+                    const h = rect.height;
                     heights[i] = h;
                     cumulative.push(sum);
                     sum += h;
